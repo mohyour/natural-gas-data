@@ -14,8 +14,8 @@ from bs4 import BeautifulSoup
 
 
 logging.basicConfig(level=logging.INFO, format='%(message)s')
-monthly_price_filename = "monthly_natural_gas_prices.csv"
-daily_price_filename = "daily_natural_gas_prices.csv"
+monthly_price_filename = "./data/monthly_natural_gas_prices.csv"
+daily_price_filename = "./data/daily_natural_gas_prices.csv"
 
 
 def month_to_num(month):

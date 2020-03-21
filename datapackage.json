@@ -1,0 +1,60 @@
+{
+  "profile": "tabular-data-package",
+  "resources": [
+    {
+      "name": "daily",
+      "path": "data/daily_natural_gas_prices.csv",
+      "profile": "tabular-data-resource",
+      "schema": {
+        "fields": [
+          {
+            "name": "Dates",
+            "type": "date",
+            "format": "default",
+            "title": "Dates",
+            "description": "Price record date"
+          },
+          {
+            "name": "Prices",
+            "type": "string",
+            "format": "default",
+            "title": "Prices",
+            "description": "Natural gas price"
+          }
+        ]
+      }
+    },
+    {
+      "name": "monthly",
+      "path": "data/monthly_natural_gas_prices.csv",
+      "profile": "tabular-data-resource",
+      "schema": {
+        "fields": [
+          {
+            "name": "Dates",
+            "type": "date",
+            "format": "default",
+            "title": "Dates",
+            "description": "Price record date"
+          },
+          {
+            "name": "Prices",
+            "type": "string",
+            "format": "default",
+            "title": "Prices",
+            "description": "Natural gas price"
+          }
+        ]
+      }
+    }
+  ],
+  "name": "natural-gas-prices",
+  "title": "Natural Gas Prices",
+  "description": "Henry Hub Natural Gas Spot Price from https://www.eia.gov/dnav/ng/hist/rngwhhdD.htm",
+  "contributors": [
+    {
+      "title": "Moyosore Sosan",
+      "role": "author"
+    }
+  ]
+}
