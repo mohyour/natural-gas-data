@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 try:
     # Python 3.x
     from urllib.request import urlopen
@@ -5,12 +7,25 @@ except ImportError:
     # Python 2.x
     from urllib import urlopen
 
-from bs4 import BeautifulSoup
 import datetime
 import csv
+import logging
+from bs4 import BeautifulSoup
+
+
+logging.basicConfig(level=logging.INFO, format='%(message)s')
+monthly_price_filename = "monthly_natural_gas_prices.csv"
+daily_price_filename = "daily_natural_gas_prices.csv"
 
 
 def month_to_num(month):
+    """Returns number value for abbreviated month
+
+    Args:
+        month (str): Abbreviated month to get number value
+    Returns:
+        month_num (int): Month number of abbreviated month
+    """
     month_dict = {
         'Jan': 1,
         'Feb': 2,
@@ -25,10 +40,18 @@ def month_to_num(month):
         'Nov': 11,
         'Dec': 12
     }
-    return month_dict[month]
+    month_num = month_dict[month]
+    return month_num
 
 
 def format_date(date):
+    """Formats row string date values to proper date
+
+    Args:
+        date (str): String date value
+    Returns:
+        new_date (datetime.date): New date generated from date string
+    """
     split_date = date.split(" ", 1)
     year = int(split_date[0])
     just_dates = split_date[1].split("to")
@@ -40,20 +63,44 @@ def format_date(date):
 
 
 def parse_row(row):
+    """Parse html row tags into readable tuple
+
+    Args:
+        row (list): data rows with html tags
+    Returns:
+        data_rows (tuple): text extracted from hmtl row tags
+    """
     date = row[0].text.strip()
     prices = [price.text for price in row[1:]]
-    return (date, prices)
+    data_rows = (date, prices)
+    return data_rows
 
 
 def load_html_data_from_url(url, history):
-    u = urlopen(url)
+    """Load html data from url link
+
+    Args:
+        url (str): url to load data from
+        history: data history to load (daily or monthly)
+    Returns:
+        loaded_html (list): extracted html data from url
+    """
     try:
-        html = u.read().decode('utf-8')
+        url_data = urlopen(url)
+    except Exception:
+        logging.info("Unable to open %s for %s gas prices.\nPlease check that "
+                     "you have the correct url\n", url, history)
+        return
+    try:
+        html = url_data.read().decode('utf-8')
     finally:
-        u.close()
+        url_data.close()
+
     soup = BeautifulSoup(html, features="html.parser")
-    dates = soup.find('table', {"summary": "Henry Hub Natural Gas Spot Price (Dollars per Million Btu)"}).find_all('tr')
-    dates = [date.extract() for date in dates if len(date.get_text(strip=True)) != 0]
+    summary_text = "Henry Hub Natural Gas Spot Price (Dollars per Million Btu)"
+    dates = soup.find('table', {"summary": summary_text}).find_all('tr')
+    dates = [date.extract() for date in dates if len(date.get_text(strip=True))
+             != 0]
     if history == 'daily':
         loaded_html = dates[1:]
     else:
@@ -61,44 +108,72 @@ def load_html_data_from_url(url, history):
     return loaded_html
 
 
-def save_daily_csv(url):
-    html_data = load_html_data_from_url(url, "daily")
-    with open('price_daily.csv', newline='', mode='w') as price_daily:
-        fieldnames = ['Dates', 'Prices']
-        writer = csv.DictWriter(price_daily, fieldnames=fieldnames)
-        writer.writeheader()
-        for row in html_data:
-            row_data = parse_row(row.find_all('td'))
-            date = format_date(row_data[0])
-            prices = row_data[1]
-            for i in range(0, len(prices)):
-                nexr_day = date + datetime.timedelta(days=i)
-                price_writer = csv.writer(price_daily, delimiter=',')
-                price_writer.writerow([nexr_day, prices[i]])
+def save_daily_price_to_csv(url):
+    """Save daily price history to csv file
+
+    Args:
+        url (str): url to load data from
+    Returns:
+        None
+    """
+    logging.info("Starting daily price extraction...")
+    try:
+        html_data = load_html_data_from_url(url, "daily")
+        with open(daily_price_filename, newline='', mode='w') as daily_price:
+            fieldnames = ['Dates', 'Prices']
+            writer = csv.DictWriter(daily_price, fieldnames=fieldnames)
+            writer.writeheader()
+            logging.info("Saving to csv...")
+            for row in html_data:
+                row_data = parse_row(row.find_all('td'))
+                date = format_date(row_data[0])
+                prices = row_data[1]
+                for price_index in range(0, len(prices)):
+                    next_day = date + datetime.timedelta(days=price_index)
+                    price_writer = csv.writer(daily_price, delimiter=',')
+                    price_writer.writerow([next_day, prices[price_index]])
+        logging.info("Completed. Data saved to %s", daily_price_filename)
+    except Exception:
+        logging.error("Cannot save daily data to csv from %s\nYou either "
+                      "have the wrong url or the url page structure has"
+                      "changed.\n", url)
+        return
 
 
-def save_monthly_csv(url):
-    html_data = load_html_data_from_url(url, "monthly")
-    with open('price_monthly.csv', newline='', mode='w') as price_monthly:
-        fieldnames = ['Dates', 'Prices']
-        writer = csv.DictWriter(price_monthly, fieldnames=fieldnames)
-        writer.writeheader()
-        for row in html_data:
-            row_data = parse_row(row.find_all('td'))
-            year = int(row_data[0])
-            prices = row_data[1]
-            for i in range(1, len(prices)+1):
-                date = datetime.date(year, i, 1)
-                price_writer = csv.writer(price_monthly, delimiter=',')
-                price_writer.writerow([date, prices[i-1]])
+def save_monthly_price_to_csv(url):
+    """Save monthly price history to csv file
 
-
-def extract_data(url, history="daily"):
-    if history == "daily":
-        save_daily_csv(url)
-    else:
-        save_monthly_csv(url)
+    Args:
+        url (str): url to load data from
+    Returns:
+        None
+    """
+    logging.info("Starting monthly price extraction...")
+    try:
+        html_data = load_html_data_from_url(url, "monthly")
+        with open(monthly_price_filename, newline='', mode='w') as \
+                monthly_price:
+            fieldnames = ['Dates', 'Prices']
+            writer = csv.DictWriter(monthly_price, fieldnames=fieldnames)
+            writer.writeheader()
+            logging.info("Saving to csv...")
+            for row in html_data:
+                row_data = parse_row(row.find_all('td'))
+                year = int(row_data[0])
+                prices = row_data[1]
+                for price_index in range(len(prices)):
+                    date = datetime.date(year=year, month=price_index + 1,
+                                         day=1)
+                    price_writer = csv.writer(monthly_price, delimiter=',')
+                    price_writer.writerow([date, prices[price_index]])
+        logging.info("Completed. Data saved to %s", monthly_price_filename)
+    except Exception:
+        logging.error("Cannot save monthly data to csv from %s\nYou either "
+                      "have the wrong url or the url page structure has "
+                      "changed.\n", url)
+        return
 
 
 if __name__ == "__main__":
-    extract_data('https://www.eia.gov/dnav/ng/hist/rngwhhdD.htm', history="daily")
+    save_daily_price_to_csv('https://www.eia.gov/dnav/ng/hist/rngwhhdD.htm')
+    save_monthly_price_to_csv('https://www.eia.gov/dnav/ng/hist/rngwhhdm.htm')
