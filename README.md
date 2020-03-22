@@ -1,2 +1,2 @@
 # natural-gas-data
-A script to get CSV files of natural gas prices from https://datahub.io/mohyour/natural-gas-prices
+A script to get CSV files of natural gas prices from https://www.eia.gov/dnav/ng/hist/rngwhhdm.htm
